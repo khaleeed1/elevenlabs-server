@@ -11,7 +11,11 @@ app = Flask(__name__)
 @app.route("/")
 def home():
 
-    headers = {"xi-api-key": API_KEY}
+    headers = {
+    "xi-api-key": API_KEY,
+    "Content-Type": "application/json",
+    "Accept": "audio/mpeg"
+}
 
     try:
         r = requests.get(f"{API_URL}/voices", headers=headers)
