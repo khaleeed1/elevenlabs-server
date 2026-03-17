@@ -1,94 +1,179 @@
-import requests
 import os
-from flask import Flask, request, jsonify, send_file
-import uuid
+import requests
+from flask import Flask, request, Response, jsonify
 
 API_KEY = os.getenv("sk_03e7cd15467c5f0218f2b1f68a667ad4e58b0701c1617019")
 API_URL = "https://api.elevenlabs.io/v1"
 
 app = Flask(__name__)
 
+
 @app.route("/")
 def home():
 
     headers = {"xi-api-key": API_KEY}
-    r = requests.get(f"{API_URL}/voices", headers=headers)
 
-    voices = r.json()["voices"]
+    try:
+        r = requests.get(f"{API_URL}/voices", headers=headers)
+        data = r.json()
 
-    options = ""
-    for v in voices:
-        options += f'<option value="{v["voice_id"]}">{v["name"]}</option>'
+        voices = data["voices"]
+
+        options = ""
+        for v in voices:
+            options += f'<option value="{v["voice_id"]}">{v["name"]}</option>'
+
+    except:
+        options = "<option>Error loading voices</option>"
 
     return f"""
 <html>
-<body style="font-family:Arial;text-align:center;margin-top:40px">
 
-<h2>ElevenLabs Voice Generator</h2>
+<head>
 
-<select id="voice" style="width:300px;height:40px">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+
+body {{
+font-family: Arial;
+text-align:center;
+background:#f2f2f2;
+}}
+
+.box {{
+background:white;
+width:350px;
+margin:auto;
+padding:20px;
+border-radius:10px;
+box-shadow:0 0 10px rgba(0,0,0,0.2);
+}}
+
+select,textarea,button {{
+width:100%;
+margin-top:10px;
+padding:10px;
+font-size:14px;
+}}
+
+button {{
+background:#4CAF50;
+color:white;
+border:none;
+cursor:pointer;
+}}
+
+button:hover {{
+background:#45a049;
+}}
+
+#status {{
+margin-top:10px;
+font-weight:bold;
+}}
+
+audio {{
+margin-top:15px;
+width:100%;
+}}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="box">
+
+<h3>ElevenLabs Voice Generator</h3>
+
+<select id="voice">
 {options}
 </select>
 
-<br><br>
+<textarea id="text" placeholder="Write text to convert"></textarea>
 
-<textarea id="text"
-placeholder="Write text here"
-style="width:300px;height:120px"></textarea>
+<button onclick="generate()">Generate Voice</button>
 
-<br><br>
+<div id="status"></div>
 
-<button onclick="generate()" style="width:200px;height:40px">
-Generate Voice
-</button>
+<audio id="player" controls style="display:none"></audio>
 
-<p id="status"></p>
+<br>
 
-<audio id="player" controls style="margin-top:20px;display:none"></audio>
+<a id="download" style="display:none">Download Audio</a>
+
+</div>
 
 <script>
 
-async function generate() {{
+async function generate(){{
 
-document.getElementById("status").innerText = "Generating voice...";
-document.getElementById("player").style.display = "none";
-
-let voice = document.getElementById("voice").value
 let text = document.getElementById("text").value
+let voice = document.getElementById("voice").value
 
-let res = await fetch("/voice", {{
-method: "POST",
-headers: {{ "Content-Type": "application/json" }},
-body: JSON.stringify({{voice:voice,text:text}})
+document.getElementById("status").innerText="Generating..."
+document.getElementById("player").style.display="none"
+document.getElementById("download").style.display="none"
+
+try{{
+
+let res = await fetch("/voice",{{
+
+method:"POST",
+headers:{{"Content-Type":"application/json"}},
+body:JSON.stringify({{text:text,voice:voice}})
+
 }})
 
-if(res.status != 200) {{
+if(!res.ok){{
+
 let err = await res.text()
-document.getElementById("status").innerText = "Error: " + err
+document.getElementById("status").innerText="Error: "+err
 return
+
 }}
 
 let blob = await res.blob()
+
 let url = URL.createObjectURL(blob)
 
-let player = document.getElementById("player")
-player.src = url
-player.style.display = "block"
+let player=document.getElementById("player")
+player.src=url
+player.style.display="block"
 
-document.getElementById("status").innerText = "Done"
+let dl=document.getElementById("download")
+dl.href=url
+dl.download="voice.mp3"
+dl.innerText="Download Audio"
+dl.style.display="block"
+
+document.getElementById("status").innerText="Done"
+
+}}
+
+catch(e){{
+
+document.getElementById("status").innerText="Server error"
+
+}}
 
 }}
 
 </script>
 
 </body>
+
 </html>
 """
+
 
 @app.route("/voice", methods=["POST"])
 def voice():
 
     data = request.json
+
     text = data.get("text")
     voice = data.get("voice")
 
@@ -98,7 +183,9 @@ def voice():
         "Accept": "audio/mpeg"
     }
 
-    payload = {"text": text}
+    payload = {
+        "text": text
+    }
 
     r = requests.post(
         f"{API_URL}/text-to-speech/{voice}",
@@ -108,52 +195,5 @@ def voice():
 
     if r.status_code != 200:
         return r.text, 400
-
-    filename = f"{uuid.uuid4()}.mp3"
-
-    with open(filename,"wb") as f:
-        f.write(r.content)
-
-    return send_file(filename, mimetype="audio/mpeg")
-    <br><br>
-
-    <textarea name="text"
-    placeholder="Write text here"
-    style="width:300px;height:120px"></textarea>
-
-    <br><br>
-
-    <button type="submit"
-    style="width:200px;height:40px">
-    Generate Voice
-    </button>
-
-    </form>
-
-    </body>
-    </html>
-    """
-
-@app.route("/voice", methods=["POST"])
-def voice():
-
-    text = request.form.get("text")
-    voice = request.form.get("voice")
-
-    headers = {
-        "xi-api-key": API_KEY,
-        "Content-Type": "application/json",
-        "Accept": "audio/mpeg"
-    }
-
-    data = {
-        "text": text
-    }
-
-    r = requests.post(
-        f"{API_URL}/text-to-speech/{voice}",
-        json=data,
-        headers=headers
-    )
 
     return Response(r.content, mimetype="audio/mpeg")
