@@ -10,31 +10,67 @@ API_URL = "https://api.elevenlabs.io/v1"
 @app.route("/")
 def home():
 
-    if not API_KEY:
-        return "<h2>ERROR: API_KEY not set in Render Environment Variables</h2>"
-
     headers = {"xi-api-key": API_KEY}
-
     r = requests.get(f"{API_URL}/voices", headers=headers)
 
-    voices = r.json().get("voices", [])
+    voices = r.json()["voices"]
 
     options = ""
 
     for v in voices:
-        name = v.get("name","Voice")
-        vid = v.get("voice_id")
-        options += f'<option value="{vid}">{name}</option>'
+        options += f'<option value="{v["voice_id"]}">{v["name"]}</option>'
 
     return f"""
-<html>
+    <html>
+    <body style="font-family:Arial;text-align:center;margin-top:40px">
 
-<head>
+    <h2>ElevenLabs Voice Generator</h2>
 
-<meta name="viewport" content="width=device-width, initial-scale=1">
+    <form action="/voice" method="post">
 
-<style>
+    <select name="voice" style="width:300px;height:40px">
+    {options}
+    </select>
 
+    <br><br>
+
+    <textarea name="text"
+    style="width:300px;height:120px"></textarea>
+
+    <br><br>
+
+    <button type="submit"
+    style="width:200px;height:40px">
+    Generate Voice
+    </button>
+
+    </form>
+
+    </body>
+    </html>
+    """
+
+@app.route("/voice", methods=["POST"])
+def voice():
+
+    text = request.form.get("text")
+    voice = request.form.get("voice")
+
+    headers = {
+        "xi-api-key": API_KEY,
+        "Content-Type": "application/json",
+        "Accept": "audio/mpeg"
+    }
+
+    data = {"text": text}
+
+    r = requests.post(
+        f"{API_URL}/text-to-speech/{voice}",
+        json=data,
+        headers=headers
+    )
+
+    return Response(r.content, mimetype="audio/mpeg")
 body {{
 font-family: Arial;
 background:#f2f2f2;
