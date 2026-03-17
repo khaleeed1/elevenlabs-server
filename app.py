@@ -2,7 +2,7 @@ import requests
 import os
 from flask import Flask, request, Response
 
-API_KEY = os.getenv("API_KEY")
+API_KEY = os.getenv("sk_03e7cd15467c5f0218f2b1f68a667ad4e58b0701c1617019")
 API_URL = "https://api.elevenlabs.io/v1"
 
 app = Flask(__name__)
